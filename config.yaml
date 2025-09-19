@@ -1,0 +1,4 @@
+sample: "sample"
+fastq_r1: "data/SRR15334628_1.fastq"
+fastq_r2: "data/SRR15334628_2.fastq"
+

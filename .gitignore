@@ -1,0 +1,62 @@
+# OS / Editor
+.DS_Store
+._*
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+*.log
+
+# Python
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+*.pyc
+
+# Snakemake
+.snakemake/
+.snakemake_log/
+
+# Conda/Mamba
+*.conda
+*.conda-build/
+*.tar.bz2
+envs/*.lock
+
+# Data and results (generated or large)
+results/
+data/*
+!data/.gitkeep
+!data/samples.tsv
+
+# Common sequence data (prevent accidental commits anywhere)
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.fast5
+*.bam
+*.cram
+*.bai
+*.sam
+*.vcf
+*.vcf.gz
+*.fasta
+*.fa
+*.fna
+*.fai
+*.gff
+*.gff3
+*.gtf
+
+# MultiQC and reports (usually generated)
+multiqc_data/
+multiqc_report.html
+
+# Office temp files
+.~lock.*#
+
