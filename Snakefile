@@ -258,7 +258,7 @@ rule select_alignment:
         "results/logs/select_alignment.log"
     shell:
         (
-            "ln -sf {input} {output} > {log} 2>&1 || cp -f {input} {output} >> {log} 2>&1"
+            "cp -f {input} {output} > {log} 2>&1"
         )
 
 rule sort_bam:
