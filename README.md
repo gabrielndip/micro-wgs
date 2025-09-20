@@ -40,6 +40,7 @@ Key Outputs (paths)
   - Coverage summary: `results/reports/coverage.txt` (flagstat + coverage)
   - Variant summary (TSV): `results/reports/variants_summary.tsv` (CHROM, POS, REF, ALT, QUAL, DP)
   - VCF stats: `results/reports/vcf_stats.txt` (bcftools stats)
+  - MultiQC: `results/reports/multiqc_report.html` (aggregated QC for FastQC/fastp and more)
 
 Optional Features
 - Species identification (Mash):

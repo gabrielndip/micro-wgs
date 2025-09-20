@@ -44,6 +44,7 @@ ALL_TARGETS = [
     f"results/assembly/{SAMPLE}/contigs.fasta",
     f"results/mlst/{SAMPLE}_mlst.tsv",
     REFERENCE_FASTA,
+    "results/reports/multiqc_report.html",
 ]
 
 if ENABLE_VARCALL:
@@ -458,6 +459,27 @@ rule variants_summary:
         (
             "mkdir -p results/reports results/logs && "
             "bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t[%DP]\n' {input.vcf} > {output.tsv} 2> {log}"
+        )
+
+rule multiqc:
+    input:
+        # Ensure QC steps have run before MultiQC
+        raw1=f"results/qc/fastqc/{R1_BASENAME}_fastqc.zip",
+        raw2=f"results/qc/fastqc/{R2_BASENAME}_fastqc.zip",
+        fp_html=f"results/qc/fastp/{SAMPLE}_fastp.html",
+        fp_json=f"results/qc/fastp/{SAMPLE}_fastp.json",
+        trim1=f"results/qc/fastqc_trimmed/{SAMPLE}_R1_trimmed_fastqc.zip",
+        trim2=f"results/qc/fastqc_trimmed/{SAMPLE}_R2_trimmed_fastqc.zip",
+    output:
+        report="results/reports/multiqc_report.html"
+    log:
+        f"results/logs/multiqc__{SAMPLE}.log"
+    conda:
+        "envs/multiqc_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "multiqc -o results/reports results > {log} 2>&1"
         )
 
 rule vcf_stats:
