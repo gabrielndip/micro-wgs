@@ -28,6 +28,18 @@ resistance_annotation_enabled: true
 resistance_genes_bed: "data/resistance_genes.bed"
 resistance_genes_bed_sha256: ""
 
+# Per-rule threads (override defaults below if needed)
+threads:
+  fastqc: 1
+  fastp: 2
+  spades: 4
+  align: 4           # bwa/bowtie2 align
+  sort: 4            # samtools sort
+  bcftools_call: 2
+  mash: 1
+  bedtools: 1
+  vcf_stats: 1
+
 # Optional variant effect annotation (SnpEff)
 snpeff_enabled: false
 # When using a prebuilt SnpEff genome, set snpeff_genome (e.g., 'Escherichia_coli_K12').

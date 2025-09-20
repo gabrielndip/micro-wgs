@@ -40,6 +40,14 @@ RES_BED_SHA256    = config.get("resistance_genes_bed_sha256", "")
 R1_BASENAME = os.path.basename(FASTQ_R1).replace(".fastq.gz", "").replace(".fastq", "")
 R2_BASENAME = os.path.basename(FASTQ_R2).replace(".fastq.gz", "").replace(".fastq", "")
 
+# Threads helper
+THREADS = config.get("threads", {})
+def t(name, default):
+    try:
+        return int(THREADS.get(name, default))
+    except Exception:
+        return default
+
 # Build default targets, optionally extend with variant-calling outputs
 ALL_TARGETS = [
     f"results/qc/fastqc/{R1_BASENAME}_fastqc.html",
@@ -99,7 +107,7 @@ rule fastqc_raw_reads:
 
     log:
         f"results/logs/fastqc__{SAMPLE}.log"
-    threads: 1
+    threads: t("fastqc", 1)
     conda: "envs/fastqc_env.yaml"
     shell:
         (
@@ -118,7 +126,7 @@ rule trim_reads_fastp:
         json_report=f"results/qc/fastp/{SAMPLE}_fastp.json"
     log:
         f"results/logs/fastp__{SAMPLE}.log"
-    threads: 2
+    threads: t("fastp", 2)
     conda: "envs/fastp_env.yaml"
     shell:
         (
@@ -158,7 +166,7 @@ rule assemble_genome_spades:
         outdir=f"results/assembly/{SAMPLE}"
     log:
         f"results/logs/spades__{SAMPLE}.log"
-    threads: 4
+    threads: t("spades", 4)
     conda: "envs/spades_env.yaml"
     shell:
         (
@@ -282,7 +290,7 @@ rule align_bwa:
         "results/aln/{sample}.bwa.sam"
     params:
         sample=SAMPLE
-    threads: 4
+    threads: t("align", 4)
     log:
         "results/logs/bwa_align_{sample}.log"
     conda:
@@ -309,7 +317,7 @@ rule align_bowtie2:
         "results/aln/{sample}.bowtie2.sam"
     params:
         index_prefix="results/ref/bowtie2/ref"
-    threads: 4
+    threads: t("align", 4)
     log:
         "results/logs/bowtie2_align_{sample}.log"
     conda:
@@ -337,7 +345,7 @@ rule sort_bam:
         sam=f"results/aln/{SAMPLE}.sam"
     output:
         bam=f"results/aln/{SAMPLE}.sorted.bam"
-    threads: 4
+    threads: t("sort", 4)
     log:
         f"results/logs/samtools_sort__{SAMPLE}.log"
     conda:
@@ -393,7 +401,7 @@ rule bcftools_call_raw:
         vcf="results/variants/{sample}.raw.vcf.gz"
     params:
         ploidy=PLOIDY
-    threads: 2
+    threads: t("bcftools_call", 2)
     log:
         "results/logs/bcftools_call_raw__{sample}.log"
     conda:
@@ -634,7 +642,7 @@ rule mash_sketch_refs:
         msh="results/reports/mash/refs.msh"
     log:
         "results/logs/mash_sketch_refs.log"
-    threads: 1
+    threads: t("mash", 1)
     conda:
         "envs/mash_env.yaml"
     shell:
@@ -643,6 +651,14 @@ rule mash_sketch_refs:
             "shopt -s nullglob && "
             "set -- {SPECIES_REFS_DIR}/*.fa {SPECIES_REFS_DIR}/*.fna {SPECIES_REFS_DIR}/*.fasta && "
             "if [ $# -eq 0 ]; then echo 'No reference FASTA files found in {SPECIES_REFS_DIR}' >> {log}; exit 1; fi && "
+            "# Verify checksums if sidecar .sha256 present for any input FASTA\n" \
+            "for f in \"$@\"; do " \
+            "  if [ -f \"$f.sha256\" ]; then " \
+            "    if command -v shasum >/dev/null 2>&1; then calc=$(shasum -a 256 \"$f\" | awk '{print $1}'); else calc=$(sha256sum \"$f\" | awk '{print $1}'); fi; " \
+            "    want=$(awk '{print $1}' \"$f.sha256\"); " \
+            "    if [ \"$calc\" != \"$want\" ]; then echo \"SHA256 mismatch for $f\" >> {log}; exit 1; fi; " \
+            "  fi; " \
+            "done && "
             "mash sketch -o results/reports/mash/refs.msh \"$@\" > {log} 2>&1"
         )
 

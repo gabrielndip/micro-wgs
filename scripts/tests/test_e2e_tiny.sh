@@ -24,5 +24,9 @@ printf ' - %s\n' "${TARGETS[@]}"
 
 snakemake --use-conda --cores 2 --configfile "${CFG}" "${TARGETS[@]}"
 
-echo "OK: tiny end-to-end run completed. Outputs under results/."
+echo "Verifying outputs exist..."
+for f in "${TARGETS[@]}"; do
+  [ -s "$f" ] || { echo "Missing or empty: $f" >&2; exit 3; }
+done
 
+echo "OK: tiny end-to-end run completed. Outputs under results/."

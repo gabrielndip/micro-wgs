@@ -83,10 +83,25 @@ Reproducibility
 
 CI
 - A minimal GitHub Actions workflow `.github/workflows/ci.yml` runs shellcheck, Snakemake lint, and a dry-run on pushes/PRs.
+ - Optional manual E2E test via Actions → CI → Run workflow (set `run_e2e=true`).
 
 Notes on Data
 - Large raw data should not be committed. Use instructions or scripts to fetch small fixtures locally. The repository’s `.gitignore` excludes typical large bioinformatics files.
 - If running air-gapped, set `reference_fasta` in `config.yaml` to a locally available FASTA and optionally set `reference_sha256` for integrity verification.
+
+Performance & Reruns
+- Threads are configurable per-rule under `threads:` in `config.yaml`. Defaults are tuned for a laptop.
+- For faster code-only iterations, prefer: `snakemake --rerun-triggers mtime`.
+
+Profiles
+- Example local profile: `profiles/local/config.yaml`
+  - Use via: `snakemake --profile profiles/local`
+- Add an HPC profile (e.g., `profiles/slurm/`) tailored to your environment.
+
+Troubleshooting
+- Conda solve issues: try `mamba` and clear caches; ensure bioconda + conda-forge channels are configured.
+- Permissions/Exec: ensure scripts are executable (`chmod +x scripts/**/*.sh`); on macOS, allow terminal full disk access if needed.
+- Java required for SnpEff (provided by env). If memory errors occur, set `_JAVA_OPTIONS` (e.g., `-Xmx2g`).
 
 Notes
 - Variant calling and reports are optional; toggle with `enable_variant_calling` in `config.yaml`.
