@@ -50,8 +50,15 @@ Optional Features
 - Resistance annotation (BED):
   - Enabled by default. Uses `resistance_genes_bed` from `config.yaml` (default `data/resistance_genes.bed`).
   - Output: `results/reports/resistance_hits.tsv` (VCF-derived variant loci intersected with BED features).
+  - Building a BED from public sources (CARD/ResFinder):
+    - Download an annotation (GFF3) for your exact reference genome and a list of resistance genes of interest (e.g., from CARD/ResFinder).
+    - Convert GFF to BED and optionally filter by gene names using the included helper:
+      - Example: `python scripts/gff_to_bed.py data/refgenome/your_ref.gff3 data/resistance_genes.bed --feature gene --name-attr Name --names data/gene_list.txt`
+      - Or filter by regex: `--regex "bla|tet|aac\(6'\)-Ib"`
+    - Set `resistance_genes_bed` in `config.yaml` to the resulting BED. Optionally set `resistance_genes_bed_sha256` to lock content and enable checksum validation.
 - Reference integrity check:
   - Optionally set `reference_sha256` in `config.yaml`; the download step verifies checksum after fetch.
+  - Optionally set `resistance_genes_bed_sha256` to verify the BED used for resistance annotation.
 
 Optional Assets Setup
 - Scaffold helper files (no data included): `bash scripts/setup_optional_assets.sh`

@@ -34,6 +34,7 @@ SPECIES_ENABLED   = bool(config.get("species_id_enabled", False))
 SPECIES_REFS_DIR  = config.get("species_refs_dir", "data/species_refs")
 RES_ANN_ENABLED   = bool(config.get("resistance_annotation_enabled", False))
 RES_GENES_BED     = config.get("resistance_genes_bed", "data/resistance_genes.bed")
+RES_BED_SHA256    = config.get("resistance_genes_bed_sha256", "")
 
 # Get clean base names (e.g., SRR15334628_1)
 R1_BASENAME = os.path.basename(FASTQ_R1).replace(".fastq.gz", "").replace(".fastq", "")
@@ -681,7 +682,8 @@ rule variants_to_bed:
 rule resistance_intersect:
     input:
         bed="results/reports/variants.bed",
-        genes=RES_GENES_BED
+        genes=RES_GENES_BED,
+        ok="results/reports/resistance_bed.ok"
     output:
         hits="results/reports/resistance_hits.tsv"
     log:
@@ -692,4 +694,22 @@ rule resistance_intersect:
         (
             "mkdir -p results/reports results/logs && "
             "bedtools intersect -wa -wb -a {input.bed} -b {input.genes} > {output.hits} 2> {log}"
+        )
+
+rule validate_resistance_bed:
+    input:
+        bed=RES_GENES_BED
+    output:
+        ok="results/reports/resistance_bed.ok"
+    log:
+        "results/logs/validate_resistance_bed.log"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "if [ -n '{RES_BED_SHA256}' ]; then "
+            "  if command -v shasum >/dev/null 2>&1; then calc=$(shasum -a 256 {input.bed} | awk '{print $1}'); "
+            "  elif command -v sha256sum >/dev/null 2>&1; then calc=$(sha256sum {input.bed} | awk '{print $1}'); "
+            "  else echo 'No shasum/sha256sum found; skipping checksum verification' >> {log}; fi; "
+            "  if [ -n \"$calc\" ] && [ \"$calc\" != '{RES_BED_SHA256}' ]; then echo 'SHA256 mismatch for resistance BED' >> {log}; exit 1; fi; "
+            "fi; echo OK > {output.ok}"
         )
