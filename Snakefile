@@ -99,7 +99,7 @@ rule mlst_typing:
 
 
 rule download_reference:
-    """Download and unpack the reference genome for E. coli INF32/16/A"""
+    """Download and unpack the reference genome for E. coli INF32/16/A (GCA_018310205.1)"""
     output:
         "data/refgenome/ecoli_INF32-16-A_ref.fasta"
     log:
@@ -110,7 +110,7 @@ rule download_reference:
         """
         mkdir -p data/refgenome results/logs
         wget -O data/refgenome/tmp_ref.fna.gz \
-            https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/017/634/245/GCF_017634245.1_ASM1763424v1/GCF_017634245.1_ASM1763424v1_genomic.fna.gz \
+            https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/018/310/205/GCA_018310205.1_ASM1831020v1/GCA_018310205.1_ASM1831020v1_genomic.fna.gz \
             >> {log} 2>&1
         gunzip -c data/refgenome/tmp_ref.fna.gz > {output} 2>> {log}
         rm data/refgenome/tmp_ref.fna.gz
