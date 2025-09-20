@@ -14,13 +14,15 @@ Setup
 - Create a minimal driver env: `mamba env create -f envs/snakemake.yml && mamba activate snake`
 - Optional quick checks: `bash scripts/tests/test_help.sh`
 
-Configuration
+ Configuration
 - Edit `config.yaml` to point to your inputs and options:
   - `sample`: output prefix for this sample.
   - `fastq_r1`, `fastq_r2`: paths to paired FASTQ files under `data/`.
   - `enable_variant_calling`: `true|false` to toggle alignment/VCF steps and reports.
   - `reference_fasta`: reference genome FASTA path; or keep the default and let the pipeline download an E. coli reference.
   - `aligner`: `bwa` or `bowtie2`; `ploidy` (typically 1 for bacteria).
+  - `filter_min_qual`, `filter_min_dp`: thresholds for bcftools filtering (defaults 20 and 5).
+  - `fastp_extra_args`: optional extra flags appended to fastp (e.g., `--trim_front1 5 --length_required 50`).
 
 Run
 - Dry-run (graph/paths): `snakemake -n --use-conda --cores 2`
@@ -29,6 +31,7 @@ Run
 Key Outputs (paths)
 - QC: `results/qc/fastqc/<sample>_R1_fastqc.html`, `results/qc/fastqc/<sample>_R2_fastqc.html`
 - Trimming: `results/trimmed/<sample>_R1_trimmed.fastq.gz`, `results/trimmed/<sample>_R2_trimmed.fastq.gz`
+- QC after trimming: `results/qc/fastqc_trimmed/<sample>_R1_trimmed_fastqc.html`, `results/qc/fastqc_trimmed/<sample>_R2_trimmed_fastqc.html`
 - Assembly: `results/assembly/<sample>/contigs.fasta`
 - MLST: `results/mlst/<sample>_mlst.tsv`
 - Alignment (if enabled): `results/aln/<sample>.sorted.bam` (+ `.bai`)
@@ -36,6 +39,7 @@ Key Outputs (paths)
 - Reports (if enabled):
   - Coverage summary: `results/reports/coverage.txt` (flagstat + coverage)
   - Variant summary (TSV): `results/reports/variants_summary.tsv` (CHROM, POS, REF, ALT, QUAL, DP)
+  - VCF stats: `results/reports/vcf_stats.txt` (bcftools stats)
 
 Optional Features
 - Species identification (Mash):
@@ -65,6 +69,13 @@ Reproducibility
 - Each rule specifies `conda:` to pin tool versions from `envs/*.yaml`.
 - Run with `--use-conda` so Snakemake creates and uses per-rule environments.
  - Optional checksums: set `reference_sha256` to verify downloaded reference integrity.
+
+CI
+- A minimal GitHub Actions workflow `.github/workflows/ci.yml` runs shellcheck, Snakemake lint, and a dry-run on pushes/PRs.
+
+Notes on Data
+- Large raw data should not be committed. Use instructions or scripts to fetch small fixtures locally. The repository’s `.gitignore` excludes typical large bioinformatics files.
+- If running air-gapped, set `reference_fasta` in `config.yaml` to a locally available FASTA and optionally set `reference_sha256` for integrity verification.
 
 Notes
 - Variant calling and reports are optional; toggle with `enable_variant_calling` in `config.yaml`.

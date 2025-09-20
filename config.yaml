@@ -10,6 +10,15 @@ mark_duplicates: false   # if true, use mkdup BAM for calling
 caller: "bcftools"       # currently supported: bcftools
 ploidy: 1                # bacteria default
 
+# Variant filtering thresholds (bcftools filter)
+# Records failing the expression are excluded. Defaults match previous hardcoded values.
+filter_min_qual: 20      # minimum QUAL
+filter_min_dp: 5         # minimum depth (DP)
+
+# fastp configuration (optional). Extra args appended to the fastp command.
+# Example: "--trim_front1 5 --trim_front2 5 --length_required 50"
+fastp_extra_args: ""
+
 # Optional species identification (Mash)
 species_id_enabled: true
 species_refs_dir: "data/species_refs"  # directory with small set of reference FASTAs (*.fa|*.fna|*.fasta)

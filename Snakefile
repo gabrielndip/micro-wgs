@@ -18,6 +18,11 @@ MARK_DUPLICATES  = bool(config.get("mark_duplicates", False))
 CALLER           = config.get("caller", "bcftools")
 PLOIDY           = int(config.get("ploidy", 1))
 
+# Variant filter thresholds and fastp args
+FILTER_MIN_QUAL  = float(config.get("filter_min_qual", 20))
+FILTER_MIN_DP    = int(config.get("filter_min_dp", 5))
+FASTP_EXTRA_ARGS = config.get("fastp_extra_args", "")
+
 # Optional species identification (Mash) and resistance annotation (bedtools)
 SPECIES_ENABLED   = bool(config.get("species_id_enabled", False))
 SPECIES_REFS_DIR  = config.get("species_refs_dir", "data/species_refs")
@@ -34,6 +39,8 @@ ALL_TARGETS = [
     f"results/qc/fastqc/{R2_BASENAME}_fastqc.html",
     f"results/qc/fastp/{SAMPLE}_fastp.html",
     f"results/qc/fastp/{SAMPLE}_fastp.json",
+    f"results/qc/fastqc_trimmed/{SAMPLE}_R1_trimmed_fastqc.html",
+    f"results/qc/fastqc_trimmed/{SAMPLE}_R2_trimmed_fastqc.html",
     f"results/assembly/{SAMPLE}/contigs.fasta",
     f"results/mlst/{SAMPLE}_mlst.tsv",
     REFERENCE_FASTA,
@@ -45,6 +52,7 @@ if ENABLE_VARCALL:
         f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi",
         f"results/reports/coverage.txt",
         f"results/reports/variants_summary.tsv",
+        f"results/reports/vcf_stats.txt",
     ])
 
 if SPECIES_ENABLED:
@@ -99,7 +107,27 @@ rule trim_reads_fastp:
             "mkdir -p results/trimmed results/qc/fastp results/logs && "
             "fastp -i {input.R1} -I {input.R2} "
             "-o {output.trimmed_R1} -O {output.trimmed_R2} "
-            "-h {output.html_report} -j {output.json_report} > {log} 2>&1"
+            "-h {output.html_report} -j {output.json_report} "
+            f"{FASTP_EXTRA_ARGS} > {{log}} 2>&1"
+        )
+
+rule fastqc_trimmed_reads:
+    input:
+        R1=f"results/trimmed/{SAMPLE}_R1_trimmed.fastq.gz",
+        R2=f"results/trimmed/{SAMPLE}_R2_trimmed.fastq.gz"
+    output:
+        f"results/qc/fastqc_trimmed/{SAMPLE}_R1_trimmed_fastqc.html",
+        f"results/qc/fastqc_trimmed/{SAMPLE}_R1_trimmed_fastqc.zip",
+        f"results/qc/fastqc_trimmed/{SAMPLE}_R2_trimmed_fastqc.html",
+        f"results/qc/fastqc_trimmed/{SAMPLE}_R2_trimmed_fastqc.zip"
+    log:
+        f"results/logs/fastqc_trimmed__{SAMPLE}.log"
+    threads: 1
+    conda: "envs/fastqc_env.yaml"
+    shell:
+        (
+            "mkdir -p results/qc/fastqc_trimmed results/logs && "
+            "fastqc {input.R1} {input.R2} --outdir results/qc/fastqc_trimmed > {log} 2>&1"
         )
 
 rule assemble_genome_spades:
@@ -384,7 +412,7 @@ rule filter_vcf:
         "envs/bcftools_env.yaml"
     shell:
         (
-            "bcftools filter -e 'QUAL<20 || DP<5' -Oz -o {output.vcf} {input.vcf} > {log} 2>&1 && "
+            f"bcftools filter -e 'QUAL<{FILTER_MIN_QUAL} || DP<{FILTER_MIN_DP}' -Oz -o {{output.vcf}} {{input.vcf}} > {{log}} 2>&1 && "
             "bcftools index -t {output.vcf} >> {log} 2>&1 && "
             "test -f {output.tbi} || ln -sf {output.vcf}.tbi {output.tbi} >> {log} 2>&1 || true"
         )
@@ -430,6 +458,22 @@ rule variants_summary:
         (
             "mkdir -p results/reports results/logs && "
             "bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t[%DP]\n' {input.vcf} > {output.tsv} 2> {log}"
+        )
+
+rule vcf_stats:
+    input:
+        vcf=f"results/variants/{SAMPLE}.filtered.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi"
+    output:
+        txt="results/reports/vcf_stats.txt"
+    log:
+        f"results/logs/vcf_stats__{SAMPLE}.log"
+    conda:
+        "envs/bcftools_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "bcftools stats {input.vcf} > {output.txt} 2> {log}"
         )
 
 

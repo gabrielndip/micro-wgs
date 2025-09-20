@@ -1,5 +1,7 @@
 # **Snakemake Pipeline for Bacterial Genome Variant Analysis**
 
+Note: This document has been superseded by the root `README.md` and `workflow_patched.md` content merged there. It may be outdated; prefer `README.md` for the authoritative instructions.
+
 This Snakemake workflow performs quality control (QC) on raw Illumina reads, read trimming, genome assembly, and MLST typing in a minimal, easy-to-run pipeline. It uses well-known tools: FastQC for read quality checks
 bioconda.github.io, fastp for trimming and filtering reads github.com, SPAdes for de novo genome assembly bioconda.github.io, and Torsten Seemann’s mlst tool to determine the multilocus sequence type from the assembled contigs snakemake-wrappers.readthedocs.io. Each major step runs in its own conda environment for reproducibility (fastp is assumed to be pre-installed on the system). The pipeline expects paired-end FASTQ files (e.g. SRR15334628_1.fastq and SRR15334628_1.fastq) and organizes outputs into logical folders as shown below.
 
