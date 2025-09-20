@@ -1,8 +1,8 @@
-name: snake
+name: bowtie2
 channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
-  - python=3.11
-  - snakemake=7.32.4
+  - bowtie2=2.5.4
+

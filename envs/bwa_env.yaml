@@ -1,8 +1,8 @@
-name: snake
+name: bwa
 channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
-  - python=3.11
-  - snakemake=7.32.4
+  - bwa=0.7.17
+

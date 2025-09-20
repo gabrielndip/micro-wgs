@@ -1,8 +1,7 @@
-name: snake
+name: bedtools
 channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
-  - python=3.11
-  - snakemake=7.32.4
+  - bedtools=2.31.1

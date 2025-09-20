@@ -1,4 +1,19 @@
 sample: "sample"
 fastq_r1: "data/SRR15334628_1.fastq"
 fastq_r2: "data/SRR15334628_2.fastq"
+enable_variant_calling: true
+reference_fasta: "data/refgenome/ecoli_INF32-16-A_ref.fasta"
+# Optional: provide SHA256 of reference_fasta to verify integrity (empty to skip)
+reference_sha256: ""
+aligner: "bowtie2"      # options: bwa, bowtie2
+mark_duplicates: false   # if true, use mkdup BAM for calling
+caller: "bcftools"       # currently supported: bcftools
+ploidy: 1                # bacteria default
 
+# Optional species identification (Mash)
+species_id_enabled: true
+species_refs_dir: "data/species_refs"  # directory with small set of reference FASTAs (*.fa|*.fna|*.fasta)
+
+# Optional resistance annotation (requires BED on the same reference)
+resistance_annotation_enabled: true
+resistance_genes_bed: "data/resistance_genes.bed"

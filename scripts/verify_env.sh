@@ -3,16 +3,16 @@ set -euo pipefail
 
 # Verify required tools are available and print versions.
 # Usage: ./scripts/verify_env.sh [conda_env_name]
-# Defaults to project1_env.
+# Defaults to snake.
 
-ENV_NAME="${1:-project1_env}"
+ENV_NAME="${1:-snake}"
 
 if ! command -v conda >/dev/null 2>&1; then
   echo "ERROR: conda not found in PATH" >&2
   exit 2
 fi
 
-TOOLS=(python fastqc fastp STAR featureCounts multiqc samtools shellcheck)
+TOOLS=(python fastqc fastp STAR featureCounts multiqc samtools shellcheck bwa bowtie2 bcftools)
 missing=()
 
 echo "Checking tools in env: ${ENV_NAME}" >&2
