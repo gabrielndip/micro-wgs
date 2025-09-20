@@ -1,3 +1,6 @@
+import os
+
+
 configfile: "config.yaml"
 
 shell.executable("/bin/bash")
@@ -6,24 +9,30 @@ SAMPLE   = config["sample"]
 FASTQ_R1 = config["fastq_r1"]
 FASTQ_R2 = config["fastq_r2"]
 
+# Get clean base names (e.g., SRR15334628_1)
+R1_BASENAME = os.path.basename(FASTQ_R1).replace(".fastq.gz", "").replace(".fastq", "")
+R2_BASENAME = os.path.basename(FASTQ_R2).replace(".fastq.gz", "").replace(".fastq", "")
+
 rule all:
     input:
-        f"results/qc/fastqc/{SAMPLE}_R1_fastqc.html",
-        f"results/qc/fastqc/{SAMPLE}_R2_fastqc.html",
+        f"results/qc/fastqc/{R1_BASENAME}_fastqc.html",
+        f"results/qc/fastqc/{R2_BASENAME}_fastqc.html",
         f"results/qc/fastp/{SAMPLE}_fastp.html",
         f"results/qc/fastp/{SAMPLE}_fastp.json",
         f"results/assembly/{SAMPLE}/contigs.fasta",
-        f"results/mlst/{SAMPLE}_mlst.tsv"
+        f"results/mlst/{SAMPLE}_mlst.tsv",
+        "data/refgenome/ecoli_INF32-16-A_ref.fasta"
 
 rule fastqc_raw_reads:
     input:
         R1=FASTQ_R1,
         R2=FASTQ_R2
     output:
-        R1_html=f"results/qc/fastqc/{SAMPLE}_R1_fastqc.html",
-        R1_zip=f"results/qc/fastqc/{SAMPLE}_R1_fastqc.zip",
-        R2_html=f"results/qc/fastqc/{SAMPLE}_R2_fastqc.html",
-        R2_zip=f"results/qc/fastqc/{SAMPLE}_R2_fastqc.zip"
+        f"results/qc/fastqc/{R1_BASENAME}_fastqc.html",
+        f"results/qc/fastqc/{R1_BASENAME}_fastqc.zip",
+        f"results/qc/fastqc/{R2_BASENAME}_fastqc.html",
+        f"results/qc/fastqc/{R2_BASENAME}_fastqc.zip"
+
     log:
         f"results/logs/fastqc__{SAMPLE}.log"
     threads: 1
@@ -88,3 +97,21 @@ rule mlst_typing:
             "mlst {input.assembly} 1> {output} 2> {log}"
         )
 
+
+rule download_reference:
+    """Download and unpack the reference genome for E. coli INF32/16/A"""
+    output:
+        "data/refgenome/ecoli_INF32-16-A_ref.fasta"
+    log:
+        "results/logs/download_refgenome.log"
+    conda:
+        "envs/wget_env.yaml"
+    shell:
+        """
+        mkdir -p data/refgenome results/logs
+        wget -O data/refgenome/tmp_ref.fna.gz \
+            https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/017/634/245/GCF_017634245.1_ASM1763424v1/GCF_017634245.1_ASM1763424v1_genomic.fna.gz \
+            >> {log} 2>&1
+        gunzip -c data/refgenome/tmp_ref.fna.gz > {output} 2>> {log}
+        rm data/refgenome/tmp_ref.fna.gz
+        """
