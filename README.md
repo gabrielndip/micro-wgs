@@ -64,6 +64,7 @@ Data Notes
 Smoke Tests
 - Help and rule listing: `bash scripts/tests/test_help.sh`
 - Minimal dry-run targets: `bash scripts/tests/test_minirun.sh`
+ - Tiny end-to-end test: `bash scripts/tests/test_e2e_tiny.sh` (creates small FASTQs and runs a real mini pipeline against the toy reference)
 
 Reproducibility
 - Each rule specifies `conda:` to pin tool versions from `envs/*.yaml`.
