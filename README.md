@@ -41,6 +41,7 @@ Key Outputs (paths)
   - Variant summary (TSV): `results/reports/variants_summary.tsv` (CHROM, POS, REF, ALT, QUAL, DP)
   - VCF stats: `results/reports/vcf_stats.txt` (bcftools stats)
   - MultiQC: `results/reports/multiqc_report.html` (aggregated QC for FastQC/fastp and more)
+  - Annotated VCF (if SnpEff enabled): `results/reports/variants_annotated.vcf.gz` (+ `.tbi`)
 
 Optional Features
 - Species identification (Mash):
@@ -85,4 +86,4 @@ Notes
  - Variant effect annotation (SnpEff):
   - Enable via `snpeff_enabled: true` in `config.yaml`.
   - Choose `snpeff_genome` to match your reference. For a custom reference, set `snpeff_genome: custom` and provide `snpeff_gff` (GFF3 matching your reference). The pipeline builds a local DB under `snpeff_data_dir` (default `results/snpeff`).
-  - Outputs: `results/variants/<sample>.annotated.vcf.gz` (+ `.tbi`) and `results/reports/variants_annotated.tsv` (effect, impact, gene, HGVS.p).
+  - Outputs: `results/variants/<sample>.annotated.vcf.gz` (+ `.tbi`), a copy in `results/reports/variants_annotated.vcf.gz` (+ `.tbi`), and `results/reports/variants_annotated.tsv` (effect, impact, gene, HGVS.p).

@@ -66,6 +66,8 @@ if ENABLE_VARCALL and SNPEFF_ENABLED:
     ALL_TARGETS.extend([
         f"results/variants/{SAMPLE}.annotated.vcf.gz",
         f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi",
+        "results/reports/variants_annotated.vcf.gz",
+        "results/reports/variants_annotated.vcf.gz.tbi",
         f"results/reports/variants_annotated.tsv",
     ])
 
@@ -575,6 +577,24 @@ rule snpeff_summary:
         (
             "mkdir -p results/reports results/logs && "
             "SnpSift extractFields -e '.' -s ',' -a {input.vcf} CHROM POS REF ALT ANN[*].EFFECT ANN[*].IMPACT ANN[*].GENE ANN[*].HGVS_P > {output.tsv} 2> {log}"
+        )
+
+rule annotated_vcf_to_reports:
+    input:
+        vcf=f"results/variants/{SAMPLE}.annotated.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi"
+    output:
+        vcf="results/reports/variants_annotated.vcf.gz",
+        tbi="results/reports/variants_annotated.vcf.gz.tbi"
+    log:
+        f"results/logs/annotated_vcf_to_reports__{SAMPLE}.log"
+    conda:
+        "envs/bcftools_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "cp -f {input.vcf} {output.vcf} > {log} 2>&1 && "
+            "cp -f {input.tbi} {output.tbi} >> {log} 2>&1"
         )
 
 
