@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Verify required tools are available and print versions.
 # Usage: ./scripts/verify_env.sh [conda_env_name]
-# Defaults to project1_env.
+# Defaults to snake.
 
-ENV_NAME="${1:-project1_env}"
+ENV_NAME="${1:-snake}"
 
 if ! command -v conda >/dev/null 2>&1; then
   echo "ERROR: conda not found in PATH" >&2

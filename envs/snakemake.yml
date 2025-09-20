@@ -1,4 +1,4 @@
-name: project1_env
+name: snake
 channels:
   - conda-forge
   - bioconda

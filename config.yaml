@@ -1,7 +1,7 @@
 sample: "sample"
 fastq_r1: "data/SRR15334628_1.fastq"
 fastq_r2: "data/SRR15334628_2.fastq"
-enable_variant_calling: false
+enable_variant_calling: true
 reference_fasta: "data/refgenome/ecoli_INF32-16-A_ref.fasta"
 aligner: "bwa"          # options: bwa, bowtie2
 mark_duplicates: false   # if true, use mkdup BAM for calling

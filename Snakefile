@@ -312,7 +312,7 @@ rule bcftools_call_raw:
         ploidy=PLOIDY
     threads: 2
     log:
-        "results/logs/bcftools_call_raw.log"
+        "results/logs/bcftools_call_raw__{sample}.log"
     conda:
         "envs/bcftools_env.yaml"
     shell:
@@ -328,7 +328,7 @@ rule index_raw_vcf:
     output:
         tbi="results/variants/{sample}.raw.vcf.gz.tbi"
     log:
-        "results/logs/index_raw_vcf.log"
+        "results/logs/index_raw_vcf__{sample}.log"
     conda:
         "envs/bcftools_env.yaml"
     shell:
@@ -339,13 +339,15 @@ rule filter_vcf:
         vcf="results/variants/{sample}.raw.vcf.gz",
         tbi="results/variants/{sample}.raw.vcf.gz.tbi"
     output:
-        vcf="results/variants/{sample}.filtered.vcf.gz"
+        vcf="results/variants/{sample}.filtered.vcf.gz",
+        tbi="results/variants/{sample}.filtered.vcf.gz.tbi"
     log:
-        "results/logs/filter_vcf.log"
+        "results/logs/filter_vcf__{sample}.log"
     conda:
         "envs/bcftools_env.yaml"
     shell:
         (
             "bcftools filter -e 'QUAL<20 || DP<5' -Oz -o {output.vcf} {input.vcf} > {log} 2>&1 && "
-            "bcftools index -t {output.vcf} >> {log} 2>&1"
+            "bcftools index -t {output.vcf} >> {log} 2>&1 && "
+            "test -f {output.tbi} || ln -sf {output.vcf}.tbi {output.tbi} >> {log} 2>&1 || true"
         )
