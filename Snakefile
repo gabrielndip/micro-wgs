@@ -545,12 +545,17 @@ rule pipeline_versions:
             "mkdir -p results/reports results/logs && "
             "echo 'Snakemake:' > {output.report} && (snakemake --version 2>/dev/null || echo 'unknown') >> {output.report} && echo >> {output.report} && "
             "echo 'Pinned environments:' >> {output.report} && "
-            "for f in {params.envs_str}; do echo \"--- $f\" >> {output.report}; awk '/^name: /{print;next} /^dependencies:/{p=1;print;next} p && /^- /{print} p && NF==0{p=0}' \"$f\" >> {output.report}; done 2> {log}"
+            "for f in {params.envs_str}; do echo \"--- $f\" >> {output.report}; awk '/^name: /{{print;next}} /^dependencies:/{{p=1;print;next}} p && /^- /{{print}} p && NF==0{{p=0}}' \"$f\" >> {output.report}; done 2> {log}"
         )
 
 def snpeff_db_bin_path():
     if SNPEFF_GFF:
         return f"{SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME}/snpEffectPredictor.bin"
+    return []
+
+def snpeff_db_ok_path():
+    if SNPEFF_GFF:
+        return "results/snpeff/db.ok"
     return []
 
 rule snpeff_build_db:
@@ -559,7 +564,7 @@ rule snpeff_build_db:
         fasta="results/ref/ref.fa",
         gff=lambda wc: SNPEFF_GFF if SNPEFF_GFF else []
     output:
-        bin=lambda wc: snpeff_db_bin_path()
+        ok="results/snpeff/db.ok"
     log:
         "results/logs/snpeff_build.log"
     conda:
@@ -567,18 +572,20 @@ rule snpeff_build_db:
     shell:
         (
             "if [ -n '{SNPEFF_GFF}' ]; then "
-            "  mkdir -p {SNPEFF_DATA_DIR}/genomes {SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME} results/logs && "
+            "  mkdir -p {SNPEFF_DATA_DIR}/genomes {SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME} results/snpeff results/logs && "
             "  cp -f {input.fasta} {SNPEFF_DATA_DIR}/genomes/{SNPEFF_GENOME}.fa && "
             "  cp -f {input.gff} {SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME}/genes.gff && "
-            "  snpEff -dataDir {SNPEFF_DATA_DIR} build -gff3 -v {SNPEFF_GENOME} > {log} 2>&1; "
-            "else echo 'SNPEFF_GFF not set; skipping DB build' > {log}; fi"
+            "  snpEff -dataDir {SNPEFF_DATA_DIR} build -gff3 -v {SNPEFF_GENOME} > {log} 2>&1 && "
+            "  echo OK > {output.ok}; "
+            "else mkdir -p results/snpeff results/logs && echo 'SNPEFF_GFF not set; skipping DB build' > {log} && : > {output.ok}; fi"
         )
 
 rule snpeff_annotate:
     input:
         vcf=f"results/variants/{SAMPLE}.filtered.vcf.gz",
         tbi=f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi",
-        db=lambda wc: snpeff_db_bin_path()
+        db=lambda wc: snpeff_db_bin_path(),
+        db_ok="results/snpeff/db.ok"
     output:
         vcf=f"results/variants/{SAMPLE}.annotated.vcf.gz",
         tbi=f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi"
@@ -651,8 +658,8 @@ rule mash_sketch_refs:
             "# Verify checksums if sidecar .sha256 present for any input FASTA\n" \
             "for f in \"$@\"; do " \
             "  if [ -f \"$f.sha256\" ]; then " \
-            "    if command -v shasum >/dev/null 2>&1; then calc=$(shasum -a 256 \"$f\" | awk '{print $1}'); else calc=$(sha256sum \"$f\" | awk '{print $1}'); fi; " \
-            "    want=$(awk '{print $1}' \"$f.sha256\"); " \
+            "    if command -v shasum >/dev/null 2>&1; then calc=$(shasum -a 256 \"$f\" | awk '{{print $1}}'); else calc=$(sha256sum \"$f\" | awk '{{print $1}}'); fi; " \
+            "    want=$(awk '{{print $1}}' \"$f.sha256\"); " \
             "    if [ \"$calc\" != \"$want\" ]; then echo \"SHA256 mismatch for $f\" >> {log}; exit 1; fi; " \
             "  fi; " \
             "done && "
@@ -744,8 +751,8 @@ rule validate_resistance_bed:
         (
             "mkdir -p results/reports results/logs && "
             "if [ -n '{RES_BED_SHA256}' ]; then "
-            "  if command -v shasum >/dev/null 2>&1; then calc=$(shasum -a 256 {input.bed} | awk '{print $1}'); "
-            "  elif command -v sha256sum >/dev/null 2>&1; then calc=$(sha256sum {input.bed} | awk '{print $1}'); "
+            "  if command -v shasum >/dev/null 2>&1; then calc=$(shasum -a 256 {input.bed} | awk '{{print $1}}'); "
+            "  elif command -v sha256sum >/dev/null 2>&1; then calc=$(sha256sum {input.bed} | awk '{{print $1}}'); "
             "  else echo 'No shasum/sha256sum found; skipping checksum verification' >> {log}; fi; "
             "  if [ -n \"$calc\" ] && [ \"$calc\" != '{RES_BED_SHA256}' ]; then echo 'SHA256 mismatch for resistance BED' >> {log}; exit 1; fi; "
             "fi; echo OK > {output.ok}"
