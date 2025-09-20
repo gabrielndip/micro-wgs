@@ -26,3 +26,13 @@ species_refs_dir: "data/species_refs"  # directory with small set of reference F
 # Optional resistance annotation (requires BED on the same reference)
 resistance_annotation_enabled: true
 resistance_genes_bed: "data/resistance_genes.bed"
+
+# Optional variant effect annotation (SnpEff)
+snpeff_enabled: false
+# When using a prebuilt SnpEff genome, set snpeff_genome (e.g., 'Escherichia_coli_K12').
+# For custom annotation against your reference, set snpeff_genome (e.g., 'custom') and provide snpeff_gff.
+snpeff_genome: "custom"
+# Directory where SnpEff stores databases and genomes (written by the pipeline)
+snpeff_data_dir: "results/snpeff"
+# GFF3 annotation file matching your reference (required for custom DB builds). Leave empty to skip DB build.
+snpeff_gff: ""

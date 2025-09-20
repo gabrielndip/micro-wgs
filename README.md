@@ -82,3 +82,7 @@ Notes on Data
 Notes
 - Variant calling and reports are optional; toggle with `enable_variant_calling` in `config.yaml`.
 - Reference download rule (`download_reference`) retrieves an E. coli reference if you keep the default.
+ - Variant effect annotation (SnpEff):
+  - Enable via `snpeff_enabled: true` in `config.yaml`.
+  - Choose `snpeff_genome` to match your reference. For a custom reference, set `snpeff_genome: custom` and provide `snpeff_gff` (GFF3 matching your reference). The pipeline builds a local DB under `snpeff_data_dir` (default `results/snpeff`).
+  - Outputs: `results/variants/<sample>.annotated.vcf.gz` (+ `.tbi`) and `results/reports/variants_annotated.tsv` (effect, impact, gene, HGVS.p).

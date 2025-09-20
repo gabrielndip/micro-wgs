@@ -23,6 +23,12 @@ FILTER_MIN_QUAL  = float(config.get("filter_min_qual", 20))
 FILTER_MIN_DP    = int(config.get("filter_min_dp", 5))
 FASTP_EXTRA_ARGS = config.get("fastp_extra_args", "")
 
+# SnpEff configuration
+SNPEFF_ENABLED   = bool(config.get("snpeff_enabled", False))
+SNPEFF_GENOME    = config.get("snpeff_genome", "custom")
+SNPEFF_DATA_DIR  = config.get("snpeff_data_dir", "results/snpeff")
+SNPEFF_GFF       = config.get("snpeff_gff", "")
+
 # Optional species identification (Mash) and resistance annotation (bedtools)
 SPECIES_ENABLED   = bool(config.get("species_id_enabled", False))
 SPECIES_REFS_DIR  = config.get("species_refs_dir", "data/species_refs")
@@ -54,6 +60,13 @@ if ENABLE_VARCALL:
         f"results/reports/coverage.txt",
         f"results/reports/variants_summary.tsv",
         f"results/reports/vcf_stats.txt",
+    ])
+
+if ENABLE_VARCALL and SNPEFF_ENABLED:
+    ALL_TARGETS.extend([
+        f"results/variants/{SAMPLE}.annotated.vcf.gz",
+        f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi",
+        f"results/reports/variants_annotated.tsv",
     ])
 
 if SPECIES_ENABLED:
@@ -496,6 +509,72 @@ rule vcf_stats:
         (
             "mkdir -p results/reports results/logs && "
             "bcftools stats {input.vcf} > {output.txt} 2> {log}"
+        )
+
+
+# -----------------------
+# Optional: Variant effect annotation (SnpEff)
+# -----------------------
+
+def snpeff_db_bin_path():
+    if SNPEFF_GFF:
+        return f"{SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME}/snpEffectPredictor.bin"
+    return []
+
+rule snpeff_build_db:
+    """Build a local SnpEff database from reference FASTA and provided GFF3 (if configured)."""
+    input:
+        fasta="results/ref/ref.fa",
+        gff=lambda wc: SNPEFF_GFF if SNPEFF_GFF else []
+    output:
+        bin=lambda wc: snpeff_db_bin_path()
+    log:
+        "results/logs/snpeff_build.log"
+    conda:
+        "envs/snpeff_env.yaml"
+    shell:
+        (
+            "if [ -n '{SNPEFF_GFF}' ]; then "
+            "  mkdir -p {SNPEFF_DATA_DIR}/genomes {SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME} results/logs && "
+            "  cp -f {input.fasta} {SNPEFF_DATA_DIR}/genomes/{SNPEFF_GENOME}.fa && "
+            "  cp -f {input.gff} {SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME}/genes.gff && "
+            "  snpEff -dataDir {SNPEFF_DATA_DIR} build -gff3 -v {SNPEFF_GENOME} > {log} 2>&1; "
+            "else echo 'SNPEFF_GFF not set; skipping DB build' > {log}; fi"
+        )
+
+rule snpeff_annotate:
+    input:
+        vcf=f"results/variants/{SAMPLE}.filtered.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi",
+        db=lambda wc: snpeff_db_bin_path()
+    output:
+        vcf=f"results/variants/{SAMPLE}.annotated.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi"
+    log:
+        f"results/logs/snpeff_annotate__{SAMPLE}.log"
+    conda:
+        "envs/snpeff_env.yaml"
+    shell:
+        (
+            "mkdir -p results/variants results/logs && "
+            "snpEff -dataDir {SNPEFF_DATA_DIR} -v {SNPEFF_GENOME} {input.vcf} 2> {log} | bgzip -c > {output.vcf} && "
+            "tabix -p vcf {output.vcf} >> {log} 2>&1"
+        )
+
+rule snpeff_summary:
+    input:
+        vcf=f"results/variants/{SAMPLE}.annotated.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi"
+    output:
+        tsv="results/reports/variants_annotated.tsv"
+    log:
+        f"results/logs/snpeff_summary__{SAMPLE}.log"
+    conda:
+        "envs/snpeff_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "SnpSift extractFields -e '.' -s ',' -a {input.vcf} CHROM POS REF ALT ANN[*].EFFECT ANN[*].IMPACT ANN[*].GENE ANN[*].HGVS_P > {output.tsv} 2> {log}"
         )
 
 
