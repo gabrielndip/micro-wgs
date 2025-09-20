@@ -507,6 +507,7 @@ rule multiqc:
             "multiqc -o results/reports results > {log} 2>&1"
         )
 
+"""
 rule pipeline_versions_old:
     """Write pinned tool versions and Snakemake version to a report."""
     input:
@@ -531,6 +532,7 @@ rule pipeline_versions_old:
                 done; \
             }} > {output.report} 2> {log}"
         )
+"""
 
 rule vcf_stats:
     input:
