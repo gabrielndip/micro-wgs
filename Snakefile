@@ -507,32 +507,7 @@ rule multiqc:
             "multiqc -o results/reports results > {log} 2>&1"
         )
 
-"""
-rule pipeline_versions_old:
-    """Write pinned tool versions and Snakemake version to a report."""
-    input:
-        envs=lambda wc: sorted([f"envs/{f}" for f in os.listdir("envs") if f.endswith((".yml",".yaml"))]),
-        snake="Snakefile",
-        cfg="config.yaml"
-    output:
-        report="results/reports/versions.old.txt"
-    log:
-        "results/logs/versions.log"
-    params:
-        envs_str=lambda wildcards, input: " ".join(input.envs)
-    shell:
-        (
-            "mkdir -p results/reports results/logs && "
-            "{{ \
-                echo 'Snakemake:'; snakemake --version 2>/dev/null || echo 'unknown'; echo; \
-                echo 'Pinned environments:'; \
-                for f in {input.envs}; do \
-                    echo "--- $f"; \
-                    awk '/^name: /{print;next} /^dependencies:/{p=1;print;next} p && /^- /{print} p && NF==0{p=0}' "$f"; \
-                done; \
-            }} > {output.report} 2> {log}"
-        )
-"""
+
 
 rule vcf_stats:
     input:
