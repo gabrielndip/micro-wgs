@@ -12,10 +12,17 @@ FASTQ_R2 = config["fastq_r2"]
 # Variant-calling related config (with sensible defaults)
 ENABLE_VARCALL   = bool(config.get("enable_variant_calling", False))
 REFERENCE_FASTA  = config.get("reference_fasta", "data/refgenome/ecoli_INF32-16-A_ref.fasta")
+REFERENCE_SHA256 = config.get("reference_sha256", "")
 ALIGNER          = config.get("aligner", "bwa")  # "bwa" or "bowtie2"
 MARK_DUPLICATES  = bool(config.get("mark_duplicates", False))
 CALLER           = config.get("caller", "bcftools")
 PLOIDY           = int(config.get("ploidy", 1))
+
+# Optional species identification (Mash) and resistance annotation (bedtools)
+SPECIES_ENABLED   = bool(config.get("species_id_enabled", False))
+SPECIES_REFS_DIR  = config.get("species_refs_dir", "data/species_refs")
+RES_ANN_ENABLED   = bool(config.get("resistance_annotation_enabled", False))
+RES_GENES_BED     = config.get("resistance_genes_bed", "data/resistance_genes.bed")
 
 # Get clean base names (e.g., SRR15334628_1)
 R1_BASENAME = os.path.basename(FASTQ_R1).replace(".fastq.gz", "").replace(".fastq", "")
@@ -36,6 +43,19 @@ if ENABLE_VARCALL:
     ALL_TARGETS.extend([
         f"results/variants/{SAMPLE}.filtered.vcf.gz",
         f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi",
+        f"results/reports/coverage.txt",
+        f"results/reports/variants_summary.tsv",
+    ])
+
+if SPECIES_ENABLED:
+    ALL_TARGETS.extend([
+        "results/reports/species_id.tsv",
+        "results/reports/species_id.txt",
+    ])
+
+if RES_ANN_ENABLED and ENABLE_VARCALL:
+    ALL_TARGETS.extend([
+        "results/reports/resistance_hits.tsv",
     ])
 
 rule all:
@@ -125,14 +145,19 @@ rule download_reference:
     conda:
         "envs/wget_env.yaml"
     shell:
-        """
-        mkdir -p data/refgenome results/logs
-        wget -O data/refgenome/tmp_ref.fna.gz \
-            https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/018/310/205/GCA_018310205.1_ASM1831020v1/GCA_018310205.1_ASM1831020v1_genomic.fna.gz \
-            >> {log} 2>&1
-        gunzip -c data/refgenome/tmp_ref.fna.gz > {output} 2>> {log}
-        rm data/refgenome/tmp_ref.fna.gz
-        """
+        (
+            "mkdir -p data/refgenome results/logs && "
+            "wget -O data/refgenome/tmp_ref.fna.gz "
+            "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/018/310/205/GCA_018310205.1_ASM1831020v1/GCA_018310205.1_ASM1831020v1_genomic.fna.gz "
+            ">> {log} 2>&1 && "
+            "gunzip -c data/refgenome/tmp_ref.fna.gz > {output} 2>> {log} && rm -f data/refgenome/tmp_ref.fna.gz && "
+            "if [ -n '{REFERENCE_SHA256}' ]; then "
+            "  if command -v shasum >/dev/null 2>&1; then calc=$(shasum -a 256 {output} | awk '{{print $1}}'); "
+            "  elif command -v sha256sum >/dev/null 2>&1; then calc=$(sha256sum {output} | awk '{{print $1}}'); "
+            "  else echo 'No shasum/sha256sum found; skipping checksum verification' >> {log}; exit 0; fi; "
+            "  if [ \"$calc\" != '{REFERENCE_SHA256}' ]; then echo 'SHA256 mismatch for reference' >> {log}; exit 1; fi; "
+            "fi"
+        )
 
 
 # -----------------------
@@ -362,4 +387,144 @@ rule filter_vcf:
             "bcftools filter -e 'QUAL<20 || DP<5' -Oz -o {output.vcf} {input.vcf} > {log} 2>&1 && "
             "bcftools index -t {output.vcf} >> {log} 2>&1 && "
             "test -f {output.tbi} || ln -sf {output.vcf}.tbi {output.tbi} >> {log} 2>&1 || true"
+        )
+
+
+# -----------------------
+# Reporting
+# -----------------------
+
+rule coverage_summary:
+    """Summarize alignment coverage and basic stats into a single text report."""
+    input:
+        bam=lambda wildcards: get_bam_for_calling(),
+        bai=lambda wildcards: get_bam_for_calling() + ".bai"
+    output:
+        report="results/reports/coverage.txt"
+    log:
+        f"results/logs/coverage_summary__{SAMPLE}.log"
+    conda:
+        "envs/samtools_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "( echo 'Sample: {SAMPLE}'; echo; "
+            "  echo '=== samtools flagstat ==='; "
+            "  samtools flagstat {input.bam}; echo; "
+            "  echo '=== samtools coverage ==='; "
+            "  samtools coverage {input.bam} ) > {output.report} 2> {log}"
+        )
+
+rule variants_summary:
+    """Export a simple TSV summary from filtered VCF (CHROM, POS, REF, ALT, QUAL, DP)."""
+    input:
+        vcf=f"results/variants/{SAMPLE}.filtered.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi"
+    output:
+        tsv="results/reports/variants_summary.tsv"
+    log:
+        f"results/logs/variants_summary__{SAMPLE}.log"
+    conda:
+        "envs/bcftools_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t[%DP]\n' {input.vcf} > {output.tsv} 2> {log}"
+        )
+
+
+# -----------------------
+# Optional: Species identification (Mash)
+# -----------------------
+
+rule mash_sketch_refs:
+    input:
+        lambda wc: SPECIES_REFS_DIR
+    output:
+        msh="results/reports/mash/refs.msh"
+    log:
+        "results/logs/mash_sketch_refs.log"
+    threads: 1
+    conda:
+        "envs/mash_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports/mash results/logs && "
+            "shopt -s nullglob && "
+            "set -- {SPECIES_REFS_DIR}/*.fa {SPECIES_REFS_DIR}/*.fna {SPECIES_REFS_DIR}/*.fasta && "
+            "if [ $# -eq 0 ]; then echo 'No reference FASTA files found in {SPECIES_REFS_DIR}' >> {log}; exit 1; fi && "
+            "mash sketch -o results/reports/mash/refs.msh \"$@\" > {log} 2>&1"
+        )
+
+rule mash_sketch_sample:
+    input:
+        contigs=f"results/assembly/{SAMPLE}/contigs.fasta"
+    output:
+        msh="results/reports/mash/sample.msh"
+    log:
+        f"results/logs/mash_sketch_sample__{SAMPLE}.log"
+    threads: 1
+    conda:
+        "envs/mash_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports/mash results/logs && "
+            "mash sketch -o {output.msh} {input.contigs} > {log} 2>&1"
+        )
+
+rule mash_species_id:
+    input:
+        refs="results/reports/mash/refs.msh",
+        sample="results/reports/mash/sample.msh"
+    output:
+        tsv="results/reports/species_id.tsv",
+        txt="results/reports/species_id.txt"
+    log:
+        f"results/logs/mash_species_id__{SAMPLE}.log"
+    threads: 1
+    conda:
+        "envs/mash_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "mash dist {input.refs} {input.sample} 2>> {log} | sort -k3,3g > {output.tsv} && "
+            "cut -f1 {output.tsv} | head -n1 | sed 's/\..*$//' > {output.txt}"
+        )
+
+
+# -----------------------
+# Optional: Resistance annotation (BED intersect)
+# -----------------------
+
+rule variants_to_bed:
+    input:
+        vcf=f"results/variants/{SAMPLE}.filtered.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi"
+    output:
+        bed="results/reports/variants.bed"
+    log:
+        f"results/logs/variants_to_bed__{SAMPLE}.log"
+    conda:
+        "envs/bcftools_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "bcftools query -f '%CHROM\t%POS\t%POS\t%REF\t%ALT\n' {input.vcf} 2> {log} | "
+            "awk 'BEGIN{{OFS=\"\\t\"}} {{start=$2-1; if(start<0) start=0; print $1,start,$3,$4,$5}}' > {output.bed} 2>> {log}"
+        )
+
+rule resistance_intersect:
+    input:
+        bed="results/reports/variants.bed",
+        genes=RES_GENES_BED
+    output:
+        hits="results/reports/resistance_hits.tsv"
+    log:
+        f"results/logs/resistance_intersect__{SAMPLE}.log"
+    conda:
+        "envs/bedtools_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "bedtools intersect -wa -wb -a {input.bed} -b {input.genes} > {output.hits} 2> {log}"
         )
