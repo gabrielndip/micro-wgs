@@ -52,6 +52,7 @@ ALL_TARGETS = [
     f"results/mlst/{SAMPLE}_mlst.tsv",
     REFERENCE_FASTA,
     "results/reports/multiqc_report.html",
+    "results/reports/versions.txt",
 ]
 
 if ENABLE_VARCALL:
@@ -496,6 +497,29 @@ rule multiqc:
         (
             "mkdir -p results/reports results/logs && "
             "multiqc -o results/reports results > {log} 2>&1"
+        )
+
+rule pipeline_versions:
+    """Write pinned tool versions and Snakemake version to a report."""
+    input:
+        envs=lambda wc: sorted([f"envs/{f}" for f in os.listdir("envs") if f.endswith((".yml",".yaml"))]),
+        snake="Snakefile",
+        cfg="config.yaml"
+    output:
+        report="results/reports/versions.txt"
+    log:
+        "results/logs/versions.log"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "{{ \
+                echo 'Snakemake:'; snakemake --version 2>/dev/null || echo 'unknown'; echo; \
+                echo 'Pinned environments:'; \
+                for f in {input.envs}; do \
+                    echo "--- $f"; \
+                    awk '/^name: /{print;next} /^dependencies:/{p=1;print;next} p && /^- /{print} p && NF==0{p=0}' "$f"; \
+                done; \
+            }} > {output.report} 2> {log}"
         )
 
 rule vcf_stats:

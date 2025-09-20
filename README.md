@@ -41,6 +41,7 @@ Key Outputs (paths)
   - Variant summary (TSV): `results/reports/variants_summary.tsv` (CHROM, POS, REF, ALT, QUAL, DP)
   - VCF stats: `results/reports/vcf_stats.txt` (bcftools stats)
   - MultiQC: `results/reports/multiqc_report.html` (aggregated QC for FastQC/fastp and more)
+  - Versions: `results/reports/versions.txt` (Snakemake version and pinned env dependencies)
   - Annotated VCF (if SnpEff enabled): `results/reports/variants_annotated.vcf.gz` (+ `.tbi`)
 
 Optional Features
