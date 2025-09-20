@@ -185,7 +185,12 @@ rule bowtie2_index:
     input:
         fasta="results/ref/ref.fa"
     output:
-        expand("results/ref/bowtie2/ref.{i}.bt2", i=[1,2,3,4,5,6])
+        "results/ref/bowtie2/ref.1.bt2",
+        "results/ref/bowtie2/ref.2.bt2",
+        "results/ref/bowtie2/ref.3.bt2",
+        "results/ref/bowtie2/ref.4.bt2",
+        "results/ref/bowtie2/ref.rev.1.bt2",
+        "results/ref/bowtie2/ref.rev.2.bt2"
     log:
         "results/logs/bowtie2_index.log"
     conda:
@@ -219,7 +224,14 @@ rule align_bwa:
 
 rule align_bowtie2:
     input:
-        idx=expand("results/ref/bowtie2/ref.{i}.bt2", i=[1,2,3,4,5,6]),
+        idx=[
+            "results/ref/bowtie2/ref.1.bt2",
+            "results/ref/bowtie2/ref.2.bt2",
+            "results/ref/bowtie2/ref.3.bt2",
+            "results/ref/bowtie2/ref.4.bt2",
+            "results/ref/bowtie2/ref.rev.1.bt2",
+            "results/ref/bowtie2/ref.rev.2.bt2",
+        ],
         R1=f"results/trimmed/{{sample}}_R1_trimmed.fastq.gz",
         R2=f"results/trimmed/{{sample}}_R2_trimmed.fastq.gz"
     output:
