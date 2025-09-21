@@ -64,3 +64,6 @@ multiqc_report.html
 *.odt
 *.doc
 *.docx
+
+# Repo-specific ignores
+apptainer_containerization_plan.txt
