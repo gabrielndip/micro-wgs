@@ -67,3 +67,4 @@ multiqc_report.html
 
 # Repo-specific ignores
 apptainer_containerization_plan.txt
+AGENTS.md
