@@ -11,6 +11,9 @@ Overview
  Containerization
 - Apptainer plan (ARM64 macOS via Linux VM, first-person guide): `apptainer_containerization_plan.md`
 
+ Documentation
+- Detailed workflow guide: `workflow.md`
+
 Project Layout
 - Workflow: `Snakefile` (root), per-tool env YAMLs under `envs/`.
 - Inputs: place FASTQs under `data/`; reference fetched to `data/refgenome/` (or set in `config.yaml`).
