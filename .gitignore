@@ -59,3 +59,8 @@ multiqc_report.html
 
 # Office temp files
 .~lock.*#
+
+# Office documents (avoid committing binaries)
+*.odt
+*.doc
+*.docx
