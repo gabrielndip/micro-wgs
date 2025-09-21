@@ -8,7 +8,7 @@ bioconda.github.io, fastp for trimming and filtering reads github.com, SPAdes fo
 # **Project Folder Structure**
 
 Below is a recommended project structure. Raw data goes in the `data/ folder`, and results are grouped by step (QC reports, trimmed reads, assembly output, MLST results). The conda environment YAMLs are stored in an `envs/` folder, and a `config.yaml file holds sample-specific settings.
-proj01/  
+micro-wgs/  
 ├── Snakefile                   # Snakemake pipeline  
 ├── config.yaml                 # Configuration (sample name, input file paths, etc.)  
 ├── envs/                       # Conda environments for each tool  
