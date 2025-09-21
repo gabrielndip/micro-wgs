@@ -8,6 +8,9 @@ Overview
  Portfolio
 - Clinical-focused project portfolio: see `portfolio_bacterial_wgs_pipeline.md` for a scientific, clinician-oriented summary of goals, methods, results, and interpretation.
 
+ Containerization
+- Apptainer plan (ARM64 macOS via Linux VM, first-person guide): `apptainer_containerization_plan.md`
+
 Project Layout
 - Workflow: `Snakefile` (root), per-tool env YAMLs under `envs/`.
 - Inputs: place FASTQs under `data/`; reference fetched to `data/refgenome/` (or set in `config.yaml`).
