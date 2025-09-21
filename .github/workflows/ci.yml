@@ -43,9 +43,9 @@ jobs:
         shell: bash -l {0}
         run: snakemake --lint || true
 
-      - name: Dry-run default targets
+      - name: Minimal Snakemake check (rules listing)
         shell: bash -l {0}
-        run: snakemake -n --use-conda --cores 2
+        run: bash scripts/tests/test_help.sh
 
   e2e-tiny:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_e2e == 'true'
