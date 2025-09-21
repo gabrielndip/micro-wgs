@@ -12,7 +12,7 @@ if ! command -v conda >/dev/null 2>&1; then
   exit 2
 fi
 
-TOOLS=(python fastqc fastp STAR featureCounts multiqc samtools shellcheck bwa bowtie2 bcftools)
+TOOLS=(python snakemake fastqc fastp spades.py mlst bwa bowtie2 samtools bcftools bedtools mash multiqc snpEff SnpSift shellcheck)
 missing=()
 
 echo "Checking tools in env: ${ENV_NAME}" >&2

@@ -18,15 +18,35 @@ MARK_DUPLICATES  = bool(config.get("mark_duplicates", False))
 CALLER           = config.get("caller", "bcftools")
 PLOIDY           = int(config.get("ploidy", 1))
 
+# Variant filter thresholds and fastp args
+FILTER_MIN_QUAL  = float(config.get("filter_min_qual", 20))
+FILTER_MIN_DP    = int(config.get("filter_min_dp", 5))
+FASTP_EXTRA_ARGS = config.get("fastp_extra_args", "")
+
+# SnpEff configuration
+SNPEFF_ENABLED   = bool(config.get("snpeff_enabled", False))
+SNPEFF_GENOME    = config.get("snpeff_genome", "custom")
+SNPEFF_DATA_DIR  = config.get("snpeff_data_dir", "results/snpeff")
+SNPEFF_GFF       = config.get("snpeff_gff", "")
+
 # Optional species identification (Mash) and resistance annotation (bedtools)
 SPECIES_ENABLED   = bool(config.get("species_id_enabled", False))
 SPECIES_REFS_DIR  = config.get("species_refs_dir", "data/species_refs")
 RES_ANN_ENABLED   = bool(config.get("resistance_annotation_enabled", False))
 RES_GENES_BED     = config.get("resistance_genes_bed", "data/resistance_genes.bed")
+RES_BED_SHA256    = config.get("resistance_genes_bed_sha256", "")
 
 # Get clean base names (e.g., SRR15334628_1)
 R1_BASENAME = os.path.basename(FASTQ_R1).replace(".fastq.gz", "").replace(".fastq", "")
 R2_BASENAME = os.path.basename(FASTQ_R2).replace(".fastq.gz", "").replace(".fastq", "")
+
+# Threads helper
+THREADS = config.get("threads", {})
+def t(name, default):
+    try:
+        return int(THREADS.get(name, default))
+    except Exception:
+        return default
 
 # Build default targets, optionally extend with variant-calling outputs
 ALL_TARGETS = [
@@ -34,9 +54,13 @@ ALL_TARGETS = [
     f"results/qc/fastqc/{R2_BASENAME}_fastqc.html",
     f"results/qc/fastp/{SAMPLE}_fastp.html",
     f"results/qc/fastp/{SAMPLE}_fastp.json",
+    f"results/qc/fastqc_trimmed/{SAMPLE}_R1_trimmed_fastqc.html",
+    f"results/qc/fastqc_trimmed/{SAMPLE}_R2_trimmed_fastqc.html",
     f"results/assembly/{SAMPLE}/contigs.fasta",
     f"results/mlst/{SAMPLE}_mlst.tsv",
     REFERENCE_FASTA,
+    "results/reports/multiqc_report.html",
+    "results/reports/versions.txt",
 ]
 
 if ENABLE_VARCALL:
@@ -45,6 +69,16 @@ if ENABLE_VARCALL:
         f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi",
         f"results/reports/coverage.txt",
         f"results/reports/variants_summary.tsv",
+        f"results/reports/vcf_stats.txt",
+    ])
+
+if ENABLE_VARCALL and SNPEFF_ENABLED:
+    ALL_TARGETS.extend([
+        f"results/variants/{SAMPLE}.annotated.vcf.gz",
+        f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi",
+        "results/reports/variants_annotated.vcf.gz",
+        "results/reports/variants_annotated.vcf.gz.tbi",
+        f"results/reports/variants_annotated.tsv",
     ])
 
 if SPECIES_ENABLED:
@@ -73,7 +107,7 @@ rule fastqc_raw_reads:
 
     log:
         f"results/logs/fastqc__{SAMPLE}.log"
-    threads: 1
+    threads: t("fastqc", 1)
     conda: "envs/fastqc_env.yaml"
     shell:
         (
@@ -92,14 +126,34 @@ rule trim_reads_fastp:
         json_report=f"results/qc/fastp/{SAMPLE}_fastp.json"
     log:
         f"results/logs/fastp__{SAMPLE}.log"
-    threads: 2
+    threads: t("fastp", 2)
     conda: "envs/fastp_env.yaml"
     shell:
         (
             "mkdir -p results/trimmed results/qc/fastp results/logs && "
             "fastp -i {input.R1} -I {input.R2} "
             "-o {output.trimmed_R1} -O {output.trimmed_R2} "
-            "-h {output.html_report} -j {output.json_report} > {log} 2>&1"
+            "-h {output.html_report} -j {output.json_report} "
+            f"{FASTP_EXTRA_ARGS} > {{log}} 2>&1"
+        )
+
+rule fastqc_trimmed_reads:
+    input:
+        R1=f"results/trimmed/{SAMPLE}_R1_trimmed.fastq.gz",
+        R2=f"results/trimmed/{SAMPLE}_R2_trimmed.fastq.gz"
+    output:
+        f"results/qc/fastqc_trimmed/{SAMPLE}_R1_trimmed_fastqc.html",
+        f"results/qc/fastqc_trimmed/{SAMPLE}_R1_trimmed_fastqc.zip",
+        f"results/qc/fastqc_trimmed/{SAMPLE}_R2_trimmed_fastqc.html",
+        f"results/qc/fastqc_trimmed/{SAMPLE}_R2_trimmed_fastqc.zip"
+    log:
+        f"results/logs/fastqc_trimmed__{SAMPLE}.log"
+    threads: 1
+    conda: "envs/fastqc_env.yaml"
+    shell:
+        (
+            "mkdir -p results/qc/fastqc_trimmed results/logs && "
+            "fastqc {input.R1} {input.R2} --outdir results/qc/fastqc_trimmed > {log} 2>&1"
         )
 
 rule assemble_genome_spades:
@@ -112,7 +166,7 @@ rule assemble_genome_spades:
         outdir=f"results/assembly/{SAMPLE}"
     log:
         f"results/logs/spades__{SAMPLE}.log"
-    threads: 4
+    threads: t("spades", 4)
     conda: "envs/spades_env.yaml"
     shell:
         (
@@ -236,7 +290,7 @@ rule align_bwa:
         "results/aln/{sample}.bwa.sam"
     params:
         sample=SAMPLE
-    threads: 4
+    threads: t("align", 4)
     log:
         "results/logs/bwa_align_{sample}.log"
     conda:
@@ -263,7 +317,7 @@ rule align_bowtie2:
         "results/aln/{sample}.bowtie2.sam"
     params:
         index_prefix="results/ref/bowtie2/ref"
-    threads: 4
+    threads: t("align", 4)
     log:
         "results/logs/bowtie2_align_{sample}.log"
     conda:
@@ -291,7 +345,7 @@ rule sort_bam:
         sam=f"results/aln/{SAMPLE}.sam"
     output:
         bam=f"results/aln/{SAMPLE}.sorted.bam"
-    threads: 4
+    threads: t("sort", 4)
     log:
         f"results/logs/samtools_sort__{SAMPLE}.log"
     conda:
@@ -347,7 +401,7 @@ rule bcftools_call_raw:
         vcf="results/variants/{sample}.raw.vcf.gz"
     params:
         ploidy=PLOIDY
-    threads: 2
+    threads: t("bcftools_call", 2)
     log:
         "results/logs/bcftools_call_raw__{sample}.log"
     conda:
@@ -384,7 +438,7 @@ rule filter_vcf:
         "envs/bcftools_env.yaml"
     shell:
         (
-            "bcftools filter -e 'QUAL<20 || DP<5' -Oz -o {output.vcf} {input.vcf} > {log} 2>&1 && "
+            f"bcftools filter -e 'QUAL<{FILTER_MIN_QUAL} || DP<{FILTER_MIN_DP}' -Oz -o {{output.vcf}} {{input.vcf}} > {{log}} 2>&1 && "
             "bcftools index -t {output.vcf} >> {log} 2>&1 && "
             "test -f {output.tbi} || ln -sf {output.vcf}.tbi {output.tbi} >> {log} 2>&1 || true"
         )
@@ -432,6 +486,154 @@ rule variants_summary:
             "bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%QUAL\t[%DP]\n' {input.vcf} > {output.tsv} 2> {log}"
         )
 
+rule multiqc:
+    input:
+        # Ensure QC steps have run before MultiQC
+        raw1=f"results/qc/fastqc/{R1_BASENAME}_fastqc.zip",
+        raw2=f"results/qc/fastqc/{R2_BASENAME}_fastqc.zip",
+        fp_html=f"results/qc/fastp/{SAMPLE}_fastp.html",
+        fp_json=f"results/qc/fastp/{SAMPLE}_fastp.json",
+        trim1=f"results/qc/fastqc_trimmed/{SAMPLE}_R1_trimmed_fastqc.zip",
+        trim2=f"results/qc/fastqc_trimmed/{SAMPLE}_R2_trimmed_fastqc.zip",
+    output:
+        report="results/reports/multiqc_report.html"
+    log:
+        f"results/logs/multiqc__{SAMPLE}.log"
+    conda:
+        "envs/multiqc_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "multiqc -o results/reports results > {log} 2>&1"
+        )
+
+
+
+rule vcf_stats:
+    input:
+        vcf=f"results/variants/{SAMPLE}.filtered.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi"
+    output:
+        txt="results/reports/vcf_stats.txt"
+    log:
+        f"results/logs/vcf_stats__{SAMPLE}.log"
+    conda:
+        "envs/bcftools_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "bcftools stats {input.vcf} > {output.txt} 2> {log}"
+        )
+
+
+# -----------------------
+# Optional: Variant effect annotation (SnpEff)
+# -----------------------
+
+rule pipeline_versions:
+    """Write pinned tool versions and Snakemake version to a report."""
+    input:
+        envs=lambda wc: sorted([f"envs/{f}" for f in os.listdir("envs") if f.endswith((".yml",".yaml"))]),
+    output:
+        report="results/reports/versions.txt"
+    log:
+        "results/logs/versions.log"
+    params:
+        envs_str=lambda wildcards, input: " ".join(input.envs)
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "echo 'Snakemake:' > {output.report} && (snakemake --version 2>/dev/null || echo 'unknown') >> {output.report} && echo >> {output.report} && "
+            "echo 'Pinned environments:' >> {output.report} && "
+            "for f in {params.envs_str}; do echo \"--- $f\" >> {output.report}; awk '/^name: /{{print;next}} /^dependencies:/{{p=1;print;next}} p && /^- /{{print}} p && NF==0{{p=0}}' \"$f\" >> {output.report}; done 2> {log}"
+        )
+
+def snpeff_db_bin_path():
+    if SNPEFF_GFF:
+        return f"{SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME}/snpEffectPredictor.bin"
+    return []
+
+def snpeff_db_ok_path():
+    if SNPEFF_GFF:
+        return "results/snpeff/db.ok"
+    return []
+
+rule snpeff_build_db:
+    """Build a local SnpEff database from reference FASTA and provided GFF3 (if configured)."""
+    input:
+        fasta="results/ref/ref.fa",
+        gff=lambda wc: SNPEFF_GFF if SNPEFF_GFF else []
+    output:
+        ok="results/snpeff/db.ok"
+    log:
+        "results/logs/snpeff_build.log"
+    conda:
+        "envs/snpeff_env.yaml"
+    shell:
+        (
+            "if [ -n '{SNPEFF_GFF}' ]; then "
+            "  mkdir -p {SNPEFF_DATA_DIR}/genomes {SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME} results/snpeff results/logs && "
+            "  cp -f {input.fasta} {SNPEFF_DATA_DIR}/genomes/{SNPEFF_GENOME}.fa && "
+            "  cp -f {input.gff} {SNPEFF_DATA_DIR}/data/{SNPEFF_GENOME}/genes.gff && "
+            "  snpEff -dataDir {SNPEFF_DATA_DIR} build -gff3 -v {SNPEFF_GENOME} > {log} 2>&1 && "
+            "  echo OK > {output.ok}; "
+            "else mkdir -p results/snpeff results/logs && echo 'SNPEFF_GFF not set; skipping DB build' > {log} && : > {output.ok}; fi"
+        )
+
+rule snpeff_annotate:
+    input:
+        vcf=f"results/variants/{SAMPLE}.filtered.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.filtered.vcf.gz.tbi",
+        db=lambda wc: snpeff_db_bin_path(),
+        db_ok="results/snpeff/db.ok"
+    output:
+        vcf=f"results/variants/{SAMPLE}.annotated.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi"
+    log:
+        f"results/logs/snpeff_annotate__{SAMPLE}.log"
+    conda:
+        "envs/snpeff_env.yaml"
+    shell:
+        (
+            "mkdir -p results/variants results/logs && "
+            "snpEff -dataDir {SNPEFF_DATA_DIR} -v {SNPEFF_GENOME} {input.vcf} 2> {log} | bgzip -c > {output.vcf} && "
+            "tabix -p vcf {output.vcf} >> {log} 2>&1"
+        )
+
+rule snpeff_summary:
+    input:
+        vcf=f"results/variants/{SAMPLE}.annotated.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi"
+    output:
+        tsv="results/reports/variants_annotated.tsv"
+    log:
+        f"results/logs/snpeff_summary__{SAMPLE}.log"
+    conda:
+        "envs/snpeff_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "SnpSift extractFields -e '.' -s ',' -a {input.vcf} CHROM POS REF ALT ANN[*].EFFECT ANN[*].IMPACT ANN[*].GENE ANN[*].HGVS_P > {output.tsv} 2> {log}"
+        )
+
+rule annotated_vcf_to_reports:
+    input:
+        vcf=f"results/variants/{SAMPLE}.annotated.vcf.gz",
+        tbi=f"results/variants/{SAMPLE}.annotated.vcf.gz.tbi"
+    output:
+        vcf="results/reports/variants_annotated.vcf.gz",
+        tbi="results/reports/variants_annotated.vcf.gz.tbi"
+    log:
+        f"results/logs/annotated_vcf_to_reports__{SAMPLE}.log"
+    conda:
+        "envs/bcftools_env.yaml"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "cp -f {input.vcf} {output.vcf} > {log} 2>&1 && "
+            "cp -f {input.tbi} {output.tbi} >> {log} 2>&1"
+        )
+
 
 # -----------------------
 # Optional: Species identification (Mash)
@@ -444,7 +646,7 @@ rule mash_sketch_refs:
         msh="results/reports/mash/refs.msh"
     log:
         "results/logs/mash_sketch_refs.log"
-    threads: 1
+    threads: t("mash", 1)
     conda:
         "envs/mash_env.yaml"
     shell:
@@ -453,6 +655,14 @@ rule mash_sketch_refs:
             "shopt -s nullglob && "
             "set -- {SPECIES_REFS_DIR}/*.fa {SPECIES_REFS_DIR}/*.fna {SPECIES_REFS_DIR}/*.fasta && "
             "if [ $# -eq 0 ]; then echo 'No reference FASTA files found in {SPECIES_REFS_DIR}' >> {log}; exit 1; fi && "
+            "# Verify checksums if sidecar .sha256 present for any input FASTA\n" \
+            "for f in \"$@\"; do " \
+            "  if [ -f \"$f.sha256\" ]; then " \
+            "    if command -v shasum >/dev/null 2>&1; then calc=$(shasum -a 256 \"$f\" | awk '{{print $1}}'); else calc=$(sha256sum \"$f\" | awk '{{print $1}}'); fi; " \
+            "    want=$(awk '{{print $1}}' \"$f.sha256\"); " \
+            "    if [ \"$calc\" != \"$want\" ]; then echo \"SHA256 mismatch for $f\" >> {log}; exit 1; fi; " \
+            "  fi; " \
+            "done && "
             "mash sketch -o results/reports/mash/refs.msh \"$@\" > {log} 2>&1"
         )
 
@@ -516,7 +726,8 @@ rule variants_to_bed:
 rule resistance_intersect:
     input:
         bed="results/reports/variants.bed",
-        genes=RES_GENES_BED
+        genes=RES_GENES_BED,
+        ok="results/reports/resistance_bed.ok"
     output:
         hits="results/reports/resistance_hits.tsv"
     log:
@@ -527,4 +738,22 @@ rule resistance_intersect:
         (
             "mkdir -p results/reports results/logs && "
             "bedtools intersect -wa -wb -a {input.bed} -b {input.genes} > {output.hits} 2> {log}"
+        )
+
+rule validate_resistance_bed:
+    input:
+        bed=RES_GENES_BED
+    output:
+        ok="results/reports/resistance_bed.ok"
+    log:
+        "results/logs/validate_resistance_bed.log"
+    shell:
+        (
+            "mkdir -p results/reports results/logs && "
+            "if [ -n '{RES_BED_SHA256}' ]; then "
+            "  if command -v shasum >/dev/null 2>&1; then calc=$(shasum -a 256 {input.bed} | awk '{{print $1}}'); "
+            "  elif command -v sha256sum >/dev/null 2>&1; then calc=$(sha256sum {input.bed} | awk '{{print $1}}'); "
+            "  else echo 'No shasum/sha256sum found; skipping checksum verification' >> {log}; fi; "
+            "  if [ -n \"$calc\" ] && [ \"$calc\" != '{RES_BED_SHA256}' ]; then echo 'SHA256 mismatch for resistance BED' >> {log}; exit 1; fi; "
+            "fi; echo OK > {output.ok}"
         )
