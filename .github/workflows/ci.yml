@@ -22,7 +22,7 @@ jobs:
       - name: Set up Micromamba
         uses: mamba-org/setup-micromamba@v2
         with:
-          micromamba-version: '1.5.8'
+          micromamba-version: 'latest'
           environment-file: envs/snakemake.yml
           create-args: >-
             -c conda-forge -c bioconda
@@ -59,7 +59,7 @@ jobs:
       - name: Set up Micromamba
         uses: mamba-org/setup-micromamba@v2
         with:
-          micromamba-version: '1.5.8'
+          micromamba-version: 'latest'
           environment-file: envs/snakemake.yml
           create-args: >-
             -c conda-forge -c bioconda
