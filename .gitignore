@@ -59,6 +59,3 @@ multiqc_report.html
 
 # Office temp files
 .~lock.*#
-
-# Local-only docs (do not track)
-apptainer_containerization_plan.md
