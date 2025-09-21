@@ -5,6 +5,9 @@ Overview
 - Tools (via conda envs): FastQC, fastp, SPAdes, mlst, BWA/Bowtie2, Samtools, Bcftools. Reference FASTA can be auto-downloaded.
 - Reproducibility: Each rule runs in its own pinned conda environment under `envs/` using Snakemake’s `--use-conda`.
 
+ Portfolio
+- Clinical-focused project portfolio: see `portfolio_bacterial_wgs_pipeline.md` for a scientific, clinician-oriented summary of goals, methods, results, and interpretation.
+
 Project Layout
 - Workflow: `Snakefile` (root), per-tool env YAMLs under `envs/`.
 - Inputs: place FASTQs under `data/`; reference fetched to `data/refgenome/` (or set in `config.yaml`).
