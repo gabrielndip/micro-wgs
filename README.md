@@ -1,5 +1,6 @@
 [![CI](https://github.com/gabrielndip/micro-wgs/actions/workflows/ci.yml/badge.svg)](https://github.com/gabrielndip/micro-wgs/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/gabrielndip/micro-wgs?display_name=tag)](https://github.com/gabrielndip/micro-wgs/releases)
+[![License](https://img.shields.io/github/license/gabrielndip/micro-wgs)](LICENSE)
 
 Snakemake Pipeline: Bacterial WGS QC → Trimming → Assembly → MLST → Variant Calling (optional)
 
@@ -14,8 +15,11 @@ Overview
  Containerization
 - Apptainer plan (ARM64 macOS via Linux VM, first-person guide): `apptainer_containerization_plan.md`
 
- Documentation
+Documentation
 - Detailed workflow guide: `workflow.md`
+
+ Citation
+- Cite this repository using `CITATION.cff` (GitHub “Cite this repository” button) or reference the file directly: `CITATION.cff`.
 
 Project Layout
 - Workflow: `Snakefile` (root), per-tool env YAMLs under `envs/`.
