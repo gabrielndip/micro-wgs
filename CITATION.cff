@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: >-
+  If you use this repository, please cite it using the metadata below.
+title: micro-wgs: Snakemake-based bacterial WGS pipeline (QC → trimming → assembly → MLST → optional variants)
+abstract: >-
+  A reproducible Snakemake workflow for bacterial whole-genome sequencing
+  analysis including QC (FastQC/fastp), de novo assembly (SPAdes), MLST
+  typing, and optional alignment + variant calling (BWA/Bowtie2, Samtools,
+  Bcftools), with clinical-oriented documentation and an Apptainer
+  containerization plan.
+authors:
+  - given-names: Gabriel
+    family-names: Ndip
+repository-code: https://github.com/gabrielndip/micro-wgs
+license: MIT
+version: v0.1.0
+date-released: 2025-09-21
+keywords:
+  - snakemake
+  - bacterial-wgs
+  - mlst
+  - bioinformatics
+  - apptainer
