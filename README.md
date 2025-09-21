@@ -1,3 +1,6 @@
+[![CI](https://github.com/gabrielndip/micro-wgs/actions/workflows/ci.yml/badge.svg)](https://github.com/gabrielndip/micro-wgs/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/gabrielndip/micro-wgs?display_name=tag)](https://github.com/gabrielndip/micro-wgs/releases)
+
 Snakemake Pipeline: Bacterial WGS QC → Trimming → Assembly → MLST → Variant Calling (optional)
 
 Overview
