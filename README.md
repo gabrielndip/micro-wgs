@@ -18,9 +18,6 @@ Overview
 Documentation
 - Detailed workflow guide: `workflow.md`
 
- Citation
-- Cite this repository using `CITATION.cff` (GitHub “Cite this repository” button) or reference the file directly: `CITATION.cff`.
-
 Project Layout
 - Workflow: `Snakefile` (root), per-tool env YAMLs under `envs/`.
 - Inputs: place FASTQs under `data/`; reference fetched to `data/refgenome/` (or set in `config.yaml`).
